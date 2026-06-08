@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#101114" />
+  <title>PATCO Next Train</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">PATCO</p>
+        <h1>Next Train</h1>
+      </div>
+      <button id="refreshButton" class="ghost-button" type="button">Refresh</button>
+    </header>
+
+    <section id="statusPanel" class="status-panel" role="status" aria-live="polite">
+      Loading schedule and location…
+    </section>
+
+    <section class="station-card card">
+      <p class="label">Nearest station</p>
+      <h2 id="stationName">—</h2>
+      <div class="station-meta">
+        <span id="stationDistance">— mi</span>
+        <span aria-hidden="true">•</span>
+        <span id="stationWalk">— min walk</span>
+      </div>
+    </section>
+
+    <section class="train-grid">
+      <article class="card train-card">
+        <div class="train-heading">
+          <div>
+            <p class="label">Toward Philadelphia</p>
+            <h2>8th & Market</h2>
+          </div>
+          <span id="phillyDot" class="dot gray" aria-label="status indicator"></span>
+        </div>
+        <p id="phillyTime" class="train-time">—</p>
+        <p id="phillyMinutes" class="train-subtitle">— min until train</p>
+        <p id="phillyBuffer" class="buffer-pill gray">— min buffer</p>
+      </article>
+
+      <article class="card train-card">
+        <div class="train-heading">
+          <div>
+            <p class="label">Toward New Jersey</p>
+            <h2>Lindenwold</h2>
+          </div>
+          <span id="lindenwoldDot" class="dot gray" aria-label="status indicator"></span>
+        </div>
+        <p id="lindenwoldTime" class="train-time">—</p>
+        <p id="lindenwoldMinutes" class="train-subtitle">— min until train</p>
+        <p id="lindenwoldBuffer" class="buffer-pill gray">— min buffer</p>
+      </article>
+    </section>
+
+    <footer>
+      <p id="lastUpdated">Last updated: —</p>
+      <p class="fine-print">Static schedule only. No live delays or special schedules.</p>
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
