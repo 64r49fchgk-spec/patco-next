@@ -11,8 +11,8 @@ let refreshTimer = null;
 
 const els = {
   status: document.getElementById("statusPanel"),
-  scheduleLabel: document.getElementById("scheduleLabel"),
   refreshButton: document.getElementById("refreshButton"),
+  scheduleLabel: document.getElementById("scheduleLabel"),
   stationName: document.getElementById("stationName"),
   stationDistance: document.getElementById("stationDistance"),
   stationWalk: document.getElementById("stationWalk"),
@@ -219,6 +219,10 @@ function setDotAndPill(dotEl, pillEl, color) {
   pillEl.className = `buffer-pill ${color}`;
 }
 
+function capitalize(value) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 function renderTrain(prefix, train) {
   const dot = prefix === "philly" ? els.phillyDot : els.lindenwoldDot;
   const time = prefix === "philly" ? els.phillyTime : els.lindenwoldTime;
@@ -234,6 +238,7 @@ function renderTrain(prefix, train) {
 function render(position) {
   if (!schedule) return;
 
+  els.scheduleLabel.textContent = capitalize(getZonedParts().weekday);
   const lat = position.coords.latitude;
   const lon = position.coords.longitude;
   const nearest = findNearestStation(lat, lon);
@@ -249,7 +254,6 @@ function render(position) {
   const phillyTrain = findNextTrain(nearest.id, phillyStop.id, activeServices, nearest.walk_minutes);
   const lindenwoldTrain = findNextTrain(nearest.id, lindenwoldStop.id, activeServices, nearest.walk_minutes);
 
-  els.scheduleLabel.textContent = getScheduleLabel();
   els.stationName.textContent = nearest.name;
   els.stationDistance.textContent = `${nearest.distance_miles.toFixed(2)} mi`;
   els.stationWalk.textContent = `${nearest.walk_minutes} min walk`;
