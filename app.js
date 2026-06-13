@@ -11,6 +11,7 @@ let refreshTimer = null;
 
 const els = {
   status: document.getElementById("statusPanel"),
+  scheduleLabel: document.getElementById("scheduleLabel"),
   refreshButton: document.getElementById("refreshButton"),
   stationName: document.getElementById("stationName"),
   stationDistance: document.getElementById("stationDistance"),
@@ -100,6 +101,15 @@ function findStopByName(name) {
   if (partial) return partial;
 
   throw new Error(`Could not find destination stop matching “${name}” in schedule.json.`);
+}
+
+function getScheduleLabel() {
+  const now = new Date();
+
+  return now.toLocaleDateString("en-US", {
+    weekday: "long",
+    timeZone: "America/New_York",
+  });
 }
 
 function activeServiceIdsForToday() {
@@ -239,6 +249,7 @@ function render(position) {
   const phillyTrain = findNextTrain(nearest.id, phillyStop.id, activeServices, nearest.walk_minutes);
   const lindenwoldTrain = findNextTrain(nearest.id, lindenwoldStop.id, activeServices, nearest.walk_minutes);
 
+  els.scheduleLabel.textContent = getScheduleLabel();
   els.stationName.textContent = nearest.name;
   els.stationDistance.textContent = `${nearest.distance_miles.toFixed(2)} mi`;
   els.stationWalk.textContent = `${nearest.walk_minutes} min walk`;
