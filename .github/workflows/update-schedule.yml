@@ -1,0 +1,105 @@
+name: Update PATCO Schedule
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Daily at 10:00 UTC. GitHub Actions schedules run in UTC.
+    - cron: "0 10 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  update-schedule:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Download latest PATCO GTFS
+        run: |
+          curl -L \
+            -o gtfs.zip \
+            "https://www.ridepatco.org/developers/PortAuthorityTransitCorporation.zip"
+
+      - name: Compute GTFS feed hash
+        id: hash
+        run: |
+          mkdir -p data
+          sha256sum gtfs.zip | awk '{print $1}' > /tmp/latest-gtfs-feed.sha256
+          echo "latest_hash=$(cat /tmp/latest-gtfs-feed.sha256)" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether GTFS feed changed
+        id: changed
+        run: |
+          if [ -f data/gtfs-feed.sha256 ] && cmp -s /tmp/latest-gtfs-feed.sha256 data/gtfs-feed.sha256; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "PATCO GTFS feed hash unchanged: $(cat /tmp/latest-gtfs-feed.sha256)"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "PATCO GTFS feed changed or no prior hash exists."
+            echo "Latest hash: $(cat /tmp/latest-gtfs-feed.sha256)"
+          fi
+
+      - name: Convert GTFS to schedule JSON
+        if: steps.changed.outputs.changed == 'true'
+        run: |
+          python3 tools/convert_gtfs_to_json.py
+          cp /tmp/latest-gtfs-feed.sha256 data/gtfs-feed.sha256
+
+      - name: Build schedule update summary
+        if: steps.changed.outputs.changed == 'true'
+        id: summary
+        run: |
+          RUN_DATE=$(date -u +"%Y-%m-%d")
+          SCHEDULE_DATE=$(python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("data/schedule.json")
+          if not path.exists():
+              print("unknown")
+              raise SystemExit
+
+          data = json.loads(path.read_text())
+          for key in ("generated_at", "created_at", "feed_generated_at", "schedule_generated_at"):
+              if key in data:
+                  print(data[key])
+                  break
+          else:
+              print("not recorded")
+          PY
+          )
+
+          {
+            echo "run_date=${RUN_DATE}"
+            echo "schedule_date=${SCHEDULE_DATE}"
+            echo "feed_hash=${{ steps.hash.outputs.latest_hash }}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Commit updated schedule
+        if: steps.changed.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/schedule.json data/gtfs-feed.sha256
+
+          if git diff --cached --quiet; then
+            echo "GTFS hash changed, but generated files did not change. Nothing to commit."
+            exit 0
+          fi
+
+          git commit -m "Update PATCO schedule" \
+            -m "Run date: ${{ steps.summary.outputs.run_date }}" \
+            -m "Schedule JSON date: ${{ steps.summary.outputs.schedule_date }}" \
+            -m "GTFS SHA-256: ${{ steps.summary.outputs.feed_hash }}" \
+            -m "Automatically generated from the latest published PATCO GTFS feed."
+
+          git push

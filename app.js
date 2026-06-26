@@ -105,18 +105,10 @@ function findStopByName(name) {
   throw new Error(`Could not find destination stop matching “${name}” in schedule.json.`);
 }
 
-function getScheduleLabel() {
-  const now = new Date();
-
-  return now.toLocaleDateString("en-US", {
-    weekday: "long",
-    timeZone: "America/New_York",
-  });
-}
-
-function activeServiceIdsForToday() {
+function activeServiceInfoForToday() {
   const nowParts = getZonedParts();
   const active = new Set();
+  let exceptionApplied = false;
 
   for (const service of schedule.calendar) {
     if (
@@ -130,11 +122,21 @@ function activeServiceIdsForToday() {
 
   for (const exception of schedule.calendar_dates || []) {
     if (exception.date !== nowParts.yyyymmdd) continue;
+    exceptionApplied = true;
     if (exception.exception_type === 1) active.add(exception.service_id);
     if (exception.exception_type === 2) active.delete(exception.service_id);
   }
 
-  return active;
+  const serviceIds = [...active].sort();
+  const weekdayLabel = capitalize(nowParts.weekday);
+  const serviceLabel = serviceIds.length ? serviceIds.join(", ") : "No active service";
+
+  return {
+    serviceIds: active,
+    label: exceptionApplied
+      ? `${weekdayLabel} exception · ${serviceLabel}`
+      : `${weekdayLabel} · ${serviceLabel}`,
+  };
 }
 
 function findNearestStation(lat, lon) {
@@ -249,11 +251,13 @@ function renderTrain(prefix, trains) {
 function render(position) {
   if (!schedule) return;
 
-  els.scheduleLabel.textContent = capitalize(getZonedParts().weekday);
   const lat = position.coords.latitude;
   const lon = position.coords.longitude;
   const nearest = findNearestStation(lat, lon);
-  const activeServices = activeServiceIdsForToday();
+  const activeServiceInfo = activeServiceInfoForToday();
+  const activeServices = activeServiceInfo.serviceIds;
+
+  els.scheduleLabel.textContent = activeServiceInfo.label;
 
   if (activeServices.size === 0) {
     throw new Error("No active PATCO service found for today in the static schedule.");
@@ -280,6 +284,7 @@ function render(position) {
   const noTrainMessages = [];
   if (!phillyTrains.length) noTrainMessages.push("No upcoming Philadelphia train found.");
   if (!lindenwoldTrains.length) noTrainMessages.push("No upcoming Lindenwold train found.");
+
   if (noTrainMessages.length) {
     setStatus(noTrainMessages.join(" "), "error");
   } else {

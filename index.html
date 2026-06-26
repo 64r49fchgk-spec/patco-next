@@ -4,15 +4,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#101114" />
-  <title>PATCO Next Train</title>
-  <link rel="stylesheet" href="styles.css" />
+  <title>Get Back on The Train</title>
+  <link rel="stylesheet" href="styles.css?v=4" />
 </head>
 <body>
   <main class="app-shell">
     <header class="app-header">
       <div>
         <p class="eyebrow">PATCO</p>
-        <h1>Next Train</h1>
+        <h1>Get Back on The Train</h1>
       </div>
       <button id="refreshButton" class="ghost-button" type="button">Refresh</button>
     </header>
@@ -21,7 +21,7 @@
       Loading schedule and location…
     </section>
 
-      <p class="secondary">Schedule: <span id="scheduleLabel">—</span></p>
+    <p class="secondary schedule-line">Schedule: <span id="scheduleLabel">—</span></p>
 
     <section class="station-card card">
       <p class="label">Nearest station</p>
@@ -38,7 +38,7 @@
         <div class="train-heading">
           <div>
             <p class="label">Toward Philadelphia</p>
-            <h2>8th & Market</h2>
+            <h2>8th &amp; Market</h2>
           </div>
           <span id="phillyDot" class="dot gray" aria-label="status indicator"></span>
         </div>
@@ -65,10 +65,10 @@
 
     <footer>
       <p id="lastUpdated">Last updated: —</p>
-      <p class="fine-print">Static schedule only. No live delays or special schedules.</p>
+      <p class="fine-print">Static schedule only. No live delays or service disruption alerts.</p>
     </footer>
   </main>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

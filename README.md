@@ -1,68 +1,84 @@
-# PATCO Next Train
+# Get Back on The Train
 
-A static, mobile-friendly PATCO next-train web app for GitHub Pages.
+A lightweight, mobile-first web application that helps you decide whether it's worth leaving for the PATCO station right now.
 
-It shows:
+Unlike a traditional schedule viewer, **Get Back on The Train** combines your current location, estimated walking time, and the official PATCO schedule to show how much time you'll have before your train departs.
 
-- your nearest PATCO station
-- straight-line distance to that station
-- estimated walking time at 3 mph
-- next 2 trains toward Philadelphia / 8th & Market
-- next 2 trains toward Lindenwold
-- a color indicator based on walking-time buffer
+The application runs entirely in your browser—no backend server, database, or API is required.
 
-## How it works
+---
 
-This app has no backend. It runs entirely in the browser.
+## Features
 
-1. PATCO GTFS schedule data is converted into `data/schedule.json`.
-2. GitHub Pages serves `index.html`, `app.js`, `styles.css`, and `data/schedule.json` over HTTPS.
-3. The phone browser gets your location with `navigator.geolocation`.
-4. JavaScript calculates the nearest station and next scheduled trains.
+- Automatically determines your nearest PATCO station using your device's location.
+- Displays the next scheduled train toward Philadelphia (8th & Market).
+- Displays the next scheduled train toward Lindenwold.
+- Displays the following scheduled train in each direction.
+- Calculates straight-line distance to the nearest station.
+- Estimates walking time using a 3 mph walking speed.
+- Calculates your arrival buffer before departure.
+- Color-codes departures:
+  - **Green:** 5–10 minutes of waiting after arrival (ideal)
+  - **Yellow:** Less than 5 minutes of waiting (hurry)
+  - **Red:** More than 10 minutes of waiting or the train cannot reasonably be made
+- Automatically selects the correct PATCO schedule based on:
+  - Weekday
+  - Saturday
+  - Sunday
+  - Published GTFS calendar exceptions (holidays and other scheduled service changes)
+- Displays the active GTFS service IDs used for the current calculation.
+- Refreshes automatically every 30 seconds.
+- Mobile-first interface designed for adding to an iPhone Home Screen.
+- Runs entirely as a static site on GitHub Pages.
 
-This uses static schedule data only. It does **not** include live delays, real-time train positions, or special schedules.
+---
 
-## Project structure
+## Data Source
 
-```text
-patco-next/
-  index.html
-  app.js
-  styles.css
-  data/
-    schedule.json
-  tools/
-    convert_gtfs_to_json.py
-  README.md
-```
+This application uses the publicly available PATCO GTFS schedule feed.
 
-## Get PATCO GTFS data
+The schedule is converted into a lightweight JSON file that is downloaded by the browser. All train calculations occur locally on the user's device.
 
-Download PATCO GTFS schedule data and save the zip file as:
+No trip information or location data is transmitted to any server.
+
+---
+
+## Updating Schedule Data
+
+The repository includes a GitHub Actions workflow that periodically checks the official PATCO GTFS feed.
+
+When the published GTFS feed changes, the workflow:
+
+1. Downloads the latest GTFS feed.
+2. Compares it against the last stored feed hash.
+3. Regenerates the application's `data/schedule.json`.
+4. Updates `data/gtfs-feed.sha256`.
+5. Commits the updated schedule with a descriptive commit message that includes the workflow run date, feed hash, and current schedule JSON date.
+6. Automatically redeploys the GitHub Pages site.
+
+If the feed has not changed, the workflow exits without committing anything.
+
+**Note:** The application displays scheduled service only. It does not incorporate live train delays, service disruptions, or real-time vehicle locations.
+
+---
+
+## Local Development
+
+Download the PATCO GTFS feed and save it as:
 
 ```text
 gtfs.zip
 ```
 
-Place it in the project root, next to `index.html`.
+Place `gtfs.zip` in the project root.
 
-## Convert GTFS to static JSON
-
-From the project root:
+Convert the GTFS feed into the browser-friendly schedule:
 
 ```bash
 python3 tools/convert_gtfs_to_json.py
 ```
 
-This creates:
-
-```text
-data/schedule.json
-```
-
-## Test locally
-
-From the project root:
+Run a local web server:
 
 ```bash
 python3 -m http.server 8000
@@ -74,48 +90,37 @@ Then open:
 http://localhost:8000
 ```
 
-Location access may be limited on non-HTTPS local network addresses. It should work on GitHub Pages because GitHub Pages uses HTTPS.
+---
 
-## Deploy to GitHub Pages
+## Deployment
 
-1. Create a GitHub repo, for example `patco-next`.
-2. Commit these files, including `data/schedule.json`.
-3. Push to GitHub.
-4. In GitHub, go to **Settings → Pages**.
-5. Under **Build and deployment**, choose **Deploy from a branch**.
-6. Select the `main` branch and `/root` folder.
-7. Save.
+This project is designed for GitHub Pages.
 
-Your app will be available at something like:
-
-```text
-https://YOUR-USERNAME.github.io/patco-next/
-```
-
-## Updating the schedule
-
-When PATCO publishes a new GTFS file:
-
-1. Replace `gtfs.zip`.
-2. Run:
+After committing changes:
 
 ```bash
-python3 tools/convert_gtfs_to_json.py
+git add .
+git commit -m "Describe your change"
+git push
 ```
 
-3. Commit and push the updated `data/schedule.json`.
+GitHub Pages automatically deploys the latest version.
 
-## Color logic
+---
 
-The app calculates:
+## Technology
 
-```text
-buffer_minutes = minutes_until_train - walk_minutes
-```
+- HTML5
+- CSS3
+- Vanilla JavaScript
+- GitHub Pages
+- GitHub Actions
+- PATCO GTFS Schedule Feed
 
-Then:
+---
 
-- green: more than 8 minutes of buffer
-- yellow: 6 to 8 minutes of buffer
-- red: under 6 minutes of buffer
-- gray: no upcoming train found
+## Acknowledgements
+
+This project uses the publicly available PATCO GTFS schedule feed provided by the Delaware River Port Authority (DRPA). Schedule data is used solely to calculate upcoming trains in this static, browser-based application.
+
+This project is not affiliated with, sponsored by, or endorsed by PATCO or the Delaware River Port Authority.
