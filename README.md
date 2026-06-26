@@ -7,8 +7,8 @@ It shows:
 - your nearest PATCO station
 - straight-line distance to that station
 - estimated walking time at 3 mph
-- next train toward Philadelphia / 8th & Market
-- next train toward Lindenwold
+- next 2 trains toward Philadelphia / 8th & Market
+- next 2 trains toward Lindenwold
 - a color indicator based on walking-time buffer
 
 ## How it works

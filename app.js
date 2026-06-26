@@ -20,10 +20,12 @@ const els = {
   phillyTime: document.getElementById("phillyTime"),
   phillyMinutes: document.getElementById("phillyMinutes"),
   phillyBuffer: document.getElementById("phillyBuffer"),
+  phillyFollowing: document.getElementById("phillyFollowing"),
   lindenwoldDot: document.getElementById("lindenwoldDot"),
   lindenwoldTime: document.getElementById("lindenwoldTime"),
   lindenwoldMinutes: document.getElementById("lindenwoldMinutes"),
   lindenwoldBuffer: document.getElementById("lindenwoldBuffer"),
+  lindenwoldFollowing: document.getElementById("lindenwoldFollowing"),
   lastUpdated: document.getElementById("lastUpdated"),
 };
 
@@ -168,10 +170,10 @@ function colorForBuffer(bufferMinutes) {
   return "red"; // too much waiting
 }
 
-function findNextTrain(fromStopId, destinationStopId, activeServiceIds, walkMinutesToStation) {
+function findUpcomingTrains(fromStopId, destinationStopId, activeServiceIds, walkMinutesToStation, limit = 2) {
   const nowParts = getZonedParts();
   const currentSeconds = nowParts.secondsSinceMidnight;
-  let best = null;
+  const upcoming = [];
 
   for (const trip of schedule.trips) {
     if (!activeServiceIds.has(trip.service_id)) continue;
@@ -187,31 +189,26 @@ function findNextTrain(fromStopId, destinationStopId, activeServiceIds, walkMinu
 
     if (secondsUntilTrain < 0) continue;
 
-    if (!best || secondsUntilTrain < best.seconds_until_train) {
-      const minutes = Math.ceil(secondsUntilTrain / 60);
-      const buffer = minutes - walkMinutesToStation;
-      best = {
-        time: formatGtfsSeconds(departSeconds),
-        minutes,
-        buffer_minutes: buffer,
-        color: colorForBuffer(buffer),
-        seconds_until_train: secondsUntilTrain,
-      };
-    }
+    const minutes = Math.ceil(secondsUntilTrain / 60);
+    const buffer = minutes - walkMinutesToStation;
+
+    upcoming.push({
+      time: formatGtfsSeconds(departSeconds),
+      minutes,
+      buffer_minutes: buffer,
+      color: colorForBuffer(buffer),
+      seconds_until_train: secondsUntilTrain,
+    });
   }
 
-  if (!best) {
-    return {
-      time: "—",
-      minutes: null,
-      buffer_minutes: null,
-      color: "gray",
-      message: "No upcoming train found for this direction.",
-    };
-  }
+  upcoming.sort((a, b) => a.seconds_until_train - b.seconds_until_train);
 
-  delete best.seconds_until_train;
-  return best;
+  return upcoming.slice(0, limit).map((train) => ({
+    time: train.time,
+    minutes: train.minutes,
+    buffer_minutes: train.buffer_minutes,
+    color: train.color,
+  }));
 }
 
 function setDotAndPill(dotEl, pillEl, color) {
@@ -223,16 +220,30 @@ function capitalize(value) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function renderTrain(prefix, train) {
+function renderTrain(prefix, trains) {
+  const train = trains[0];
+  const followingTrain = trains[1];
+
   const dot = prefix === "philly" ? els.phillyDot : els.lindenwoldDot;
   const time = prefix === "philly" ? els.phillyTime : els.lindenwoldTime;
   const minutes = prefix === "philly" ? els.phillyMinutes : els.lindenwoldMinutes;
   const buffer = prefix === "philly" ? els.phillyBuffer : els.lindenwoldBuffer;
+  const following = prefix === "philly" ? els.phillyFollowing : els.lindenwoldFollowing;
+
+  if (!train) {
+    setDotAndPill(dot, buffer, "gray");
+    time.textContent = "—";
+    minutes.textContent = "No upcoming train";
+    buffer.textContent = "— min buffer";
+    following.textContent = "—";
+    return;
+  }
 
   setDotAndPill(dot, buffer, train.color);
   time.textContent = train.time;
-  minutes.textContent = train.minutes === null ? "No upcoming train" : `${train.minutes} min until train`;
-  buffer.textContent = train.buffer_minutes === null ? "— min buffer" : `${train.buffer_minutes} min buffer`;
+  minutes.textContent = `${train.minutes} min until train`;
+  buffer.textContent = `${train.buffer_minutes} min buffer`;
+  following.textContent = followingTrain ? followingTrain.time : "—";
 }
 
 function render(position) {
@@ -251,14 +262,14 @@ function render(position) {
   const phillyStop = findStopByName(PHILLY_DESTINATION);
   const lindenwoldStop = findStopByName(LINDENWOLD_DESTINATION);
 
-  const phillyTrain = findNextTrain(nearest.id, phillyStop.id, activeServices, nearest.walk_minutes);
-  const lindenwoldTrain = findNextTrain(nearest.id, lindenwoldStop.id, activeServices, nearest.walk_minutes);
+  const phillyTrains = findUpcomingTrains(nearest.id, phillyStop.id, activeServices, nearest.walk_minutes);
+  const lindenwoldTrains = findUpcomingTrains(nearest.id, lindenwoldStop.id, activeServices, nearest.walk_minutes);
 
   els.stationName.textContent = nearest.name;
   els.stationDistance.textContent = `${nearest.distance_miles.toFixed(2)} mi`;
   els.stationWalk.textContent = `${nearest.walk_minutes} min walk`;
-  renderTrain("philly", phillyTrain);
-  renderTrain("lindenwold", lindenwoldTrain);
+  renderTrain("philly", phillyTrains);
+  renderTrain("lindenwold", lindenwoldTrains);
 
   els.lastUpdated.textContent = `Last updated: ${new Date().toLocaleTimeString([], {
     hour: "numeric",
@@ -266,7 +277,9 @@ function render(position) {
     second: "2-digit",
   })}`;
 
-  const noTrainMessages = [phillyTrain.message, lindenwoldTrain.message].filter(Boolean);
+  const noTrainMessages = [];
+  if (!phillyTrains.length) noTrainMessages.push("No upcoming Philadelphia train found.");
+  if (!lindenwoldTrains.length) noTrainMessages.push("No upcoming Lindenwold train found.");
   if (noTrainMessages.length) {
     setStatus(noTrainMessages.join(" "), "error");
   } else {
