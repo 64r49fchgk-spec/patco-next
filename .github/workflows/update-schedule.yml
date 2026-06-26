@@ -3,8 +3,8 @@ name: Update PATCO Schedule
 on:
   workflow_dispatch:
   schedule:
-    # Daily at 10:00 UTC. GitHub Actions schedules run in UTC.
-    - cron: "0 10 * * *"
+    # Weekly on Sunday at 10:00 UTC. GitHub Actions schedules run in UTC.
+    - cron: "0 10 * * 0"
 
 permissions:
   contents: write
@@ -53,8 +53,27 @@ jobs:
           python3 tools/convert_gtfs_to_json.py
           cp /tmp/latest-gtfs-feed.sha256 data/gtfs-feed.sha256
 
+      - name: Write schedule sync metadata
+        run: |
+          python3 - <<PY
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          path = Path("data/schedule-sync.json")
+          path.parent.mkdir(parents=True, exist_ok=True)
+
+          payload = {
+              "checked_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "changed": "${{ steps.changed.outputs.changed }}" == "true",
+              "gtfs_hash": "${{ steps.hash.outputs.latest_hash }}",
+              "source": "PATCO GTFS",
+          }
+
+          path.write_text(json.dumps(payload, indent=2) + "\n")
+          PY
+
       - name: Build schedule update summary
-        if: steps.changed.outputs.changed == 'true'
         id: summary
         run: |
           RUN_DATE=$(date -u +"%Y-%m-%d")
@@ -83,23 +102,29 @@ jobs:
             echo "feed_hash=${{ steps.hash.outputs.latest_hash }}"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Commit updated schedule
-        if: steps.changed.outputs.changed == 'true'
+      - name: Commit schedule check
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add data/schedule.json data/gtfs-feed.sha256
+          git add data/schedule.json data/gtfs-feed.sha256 data/schedule-sync.json
 
           if git diff --cached --quiet; then
-            echo "GTFS hash changed, but generated files did not change. Nothing to commit."
+            echo "No schedule or sync metadata changes to commit."
             exit 0
           fi
 
-          git commit -m "Update PATCO schedule" \
-            -m "Run date: ${{ steps.summary.outputs.run_date }}" \
-            -m "Schedule JSON date: ${{ steps.summary.outputs.schedule_date }}" \
-            -m "GTFS SHA-256: ${{ steps.summary.outputs.feed_hash }}" \
-            -m "Automatically generated from the latest published PATCO GTFS feed."
+          if [ "${{ steps.changed.outputs.changed }}" = "true" ]; then
+            git commit -m "Update PATCO schedule" \
+              -m "Run date: ${{ steps.summary.outputs.run_date }}" \
+              -m "Schedule JSON date: ${{ steps.summary.outputs.schedule_date }}" \
+              -m "GTFS SHA-256: ${{ steps.summary.outputs.feed_hash }}" \
+              -m "Automatically generated from the latest published PATCO GTFS feed."
+          else
+            git commit -m "Record PATCO schedule check" \
+              -m "Run date: ${{ steps.summary.outputs.run_date }}" \
+              -m "GTFS feed unchanged." \
+              -m "GTFS SHA-256: ${{ steps.summary.outputs.feed_hash }}"
+          fi
 
           git push

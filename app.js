@@ -1,4 +1,5 @@
 const SCHEDULE_URL = "data/schedule.json";
+const SCHEDULE_SYNC_URL = "data/schedule-sync.json";
 const WALKING_MPH = 3;
 const REFRESH_MS = 30_000;
 const TIME_ZONE = "America/New_York";
@@ -6,6 +7,7 @@ const PHILLY_DESTINATION = "8th and Market";
 const LINDENWOLD_DESTINATION = "Lindenwold";
 
 let schedule = null;
+let scheduleSync = null;
 let lastPosition = null;
 let refreshTimer = null;
 
@@ -27,7 +29,37 @@ const els = {
   lindenwoldBuffer: document.getElementById("lindenwoldBuffer"),
   lindenwoldFollowing: document.getElementById("lindenwoldFollowing"),
   lastUpdated: document.getElementById("lastUpdated"),
+  scheduleSync: document.getElementById("scheduleSync"),
 };
+
+
+function formatSyncTimestamp(timestamp) {
+  if (!timestamp) return "—";
+
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return timestamp;
+
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function renderScheduleSync() {
+  if (!els.scheduleSync) return;
+
+  if (!scheduleSync) {
+    els.scheduleSync.textContent = "🚆 Schedule sync: not checked yet";
+    return;
+  }
+
+  const checkedAt = formatSyncTimestamp(scheduleSync.checked_at);
+  const status = scheduleSync.changed ? "updated" : "checked";
+  els.scheduleSync.textContent = `🚆 Schedule ${status}: ${checkedAt}`;
+}
 
 function setStatus(message, kind = "") {
   els.status.textContent = message;
@@ -280,6 +312,7 @@ function render(position) {
     minute: "2-digit",
     second: "2-digit",
   })}`;
+  renderScheduleSync();
 
   const noTrainMessages = [];
   if (!phillyTrains.length) noTrainMessages.push("No upcoming Philadelphia train found.");
@@ -329,6 +362,23 @@ function requestLocationAndRender() {
   );
 }
 
+async function loadScheduleSync() {
+  try {
+    const response = await fetch(SCHEDULE_SYNC_URL, { cache: "no-store" });
+    if (!response.ok) {
+      scheduleSync = null;
+      renderScheduleSync();
+      return;
+    }
+    scheduleSync = await response.json();
+    renderScheduleSync();
+  } catch (error) {
+    console.warn("Could not load schedule sync metadata.", error);
+    scheduleSync = null;
+    renderScheduleSync();
+  }
+}
+
 async function loadSchedule() {
   try {
     const response = await fetch(SCHEDULE_URL, { cache: "no-store" });
@@ -336,6 +386,7 @@ async function loadSchedule() {
       throw new Error(`Could not load ${SCHEDULE_URL}. Run tools/convert_gtfs_to_json.py first.`);
     }
     schedule = await response.json();
+    await loadScheduleSync();
 
     if (!schedule.stops?.length || !schedule.trips?.length || !schedule.calendar?.length) {
       throw new Error("schedule.json is missing required stops, trips, or calendar data.");
